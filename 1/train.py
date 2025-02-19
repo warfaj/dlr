@@ -9,7 +9,6 @@ def f(x):
 # Create data (randomized and whitened)
 input = np.arange(100000)
 np.random.shuffle(input) 
-input.mean()
 input = (input-input.mean())/input.std()
 targets = f(input)
 
