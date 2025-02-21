@@ -21,6 +21,7 @@ For these first 5, use synthetic data, e.g. choose a random input x & then apply
 3. Classification where input is a vector, output is categorical (softmax & negative log likelihood loss).
 4. Now use a feedforward layer instead of pure linear regression.
 5. Now use N feedforward layers (deep learning!)
+
 Now move to the MNIST dataset. Also, start to measure & plot the test-set loss, in addition to the train set.
 6. Still just classification on vector inputs, but now on MNIST. (Flatten each input into a vector.)
 7. Use the optax library & the Adam optimizer.
