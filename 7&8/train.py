@@ -1,4 +1,4 @@
-# 7 MNIST classification on vector inputs
+# 7 & 8 MNIST classification on vector inputs with SGD or Adam optimizer
 
 import torch
 from torch import nn
@@ -27,9 +27,12 @@ test_data = datasets.MNIST(
 batch_size = 64
 epochs = 5
 learning_rate = 0.001
+max_iters = 1000
+eval_iter = 100
+optimizer = "sgd" # sgd or adam
 
 
-# Create data loaders.
+# Create data loaders
 train_dataloader = DataLoader(training_data, batch_size=batch_size)
 test_dataloader = DataLoader(test_data, batch_size=batch_size)
 
@@ -37,20 +40,18 @@ device = torch.accelerator.current_accelerator().type if torch.accelerator.is_av
 model = FeedForwardMNISTClassifier().to(device)
 
 loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate) if optimizer == "adam" else torch.optim.SGD(model.parameters(), lr=learning_rate)
 
-def train(dataloader, model, loss_fn, optimizer, training_losses):
+def train(X,y, model, loss_fn, optimizer, training_losses):
     model.train()
-    for batch, (X, y) in enumerate(dataloader):
-        X, y = X.to(device), y.to(device)
+    X, y = X.to(device), y.to(device)
+    pred = model(X)
+    loss = loss_fn(pred, y)
 
-        pred = model(X)
-        loss = loss_fn(pred, y)
-
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
-        training_losses.append(loss.item())
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()
+    training_losses.append(loss.item())
 
 def test(dataloader, model, loss_fn, test_losses):
     size = len(dataloader.dataset)
@@ -71,12 +72,28 @@ def test(dataloader, model, loss_fn, test_losses):
 
 
 training_losses, test_losses = [],[]
+iters = 0
+test_iters = []
+train_iter = iter(train_dataloader)
 
-for t in range(epochs):
-    print(f"Epoch {t+1}\n-------------------------------")
-    train(train_dataloader, model, loss_fn, optimizer, training_losses)
-    test(test_dataloader, model, loss_fn, test_losses)
-print("Done!")
+while iters < max_iters:
+    try:
+        X, y = next(train_iter)
+    except StopIteration:
+        train_iter = iter(train_dataloader)
+        X, y = next(train_iter)
+
+    train(X,y, model, loss_fn, optimizer, training_losses)
+
+    if iters % eval_iter == 0:
+        test_iters.append(iters)
+        test(test_dataloader, model, loss_fn, test_losses)
+
+    iters += 1
+
+print("Final Test Set Evaluation")
+test_iters.append(iters)
+test(test_dataloader, model, loss_fn, test_losses)
 
 
 # Plot loss curve
@@ -94,7 +111,7 @@ plt.savefig("training_graph.png", bbox_inches="tight")
 
 plt.figure(figsize=(15, 5))
 plt.subplot(1, 2, 1)
-plt.plot(test_losses)
+plt.plot(test_iters, test_losses)
 plt.title('Test Loss Over Time')
 plt.xlabel('Iteration')
 plt.ylabel('Loss')
